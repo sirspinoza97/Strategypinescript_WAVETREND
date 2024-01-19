@@ -1,0 +1,108 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ifespinosap
+
+//@version=5
+strategy("Estrategia WaveTrend", overlay = true)
+Contrat = input(1, "Contracts")
+n1 = input(10, "Channel Length")
+n2 = input(21, "Average Length")
+emaslow = input(200, "EMA")
+merror = input(0.001, "Margin")
+Sloss = input(0.002,"Stop Loss")
+TProfit = input(0.002,"Take Profit")
+Trailtf = input(true, "Use trailing Stop?")
+tstep = input(0.001, "Trailing Step")
+
+var TakeProfitB = 0.0
+var TakeProfitS = 0.0
+var Selling = 0
+var Buying = 0
+var TrailS = 0.0
+var TrailB = 0.0
+var SlossB = 0.0
+var SlossS = 0.0
+var float MinS = 0
+var float MaxB = 0
+float TrstopS = 0
+float TrstopB = 0
+float Plot_sell = 0
+float Plot_buy = 0
+float Close_sell = 0
+float Close_buy = 0
+
+ap = hlc3 
+esa = ta.ema(ap, n1)
+d = ta.ema(math.abs(ap - esa), n1)
+ci = (ap - esa) / (0.015 * d)
+tci = ta.ema(ci, n2)
+ 
+wt1 = tci
+wt2 = ta.sma(wt1,4)
+
+cu = ta.crossunder(wt1, wt2)
+co = ta.crossover(wt1, wt2)
+
+emaup = ta.ema(close, emaslow)*(1+merror)
+emadn = ta.ema(close, emaslow)*(1-merror)
+
+if (Selling == 0 and Buying == 0 and cu and close < emaup and wt1 > 0 and wt2 > 0)
+    TrailS := close*(1+Sloss)
+    TakeProfitS := close*(1-TProfit)
+    Plot_sell := close
+    strategy.entry("sell", strategy.short, Contrat)
+    Selling := 1
+    MinS := close
+    SlossS := close*(1+Sloss)
+else
+    Plot_sell := 0
+if (close < (MinS*(1-tstep)) and Trailtf == true)
+    TrailS := TrailS - (MinS - close)
+    MinS := close
+if (Selling == 1 and ((close >= TrailS and Trailtf == true) or (close >= SlossS)))
+    TrstopS := close
+    strategy.close("sell")
+    Selling := 0
+if (Selling == 1 and (close <= TakeProfitS or (co and wt1 < 0 and wt2 < 0)))
+    Close_sell := close
+    strategy.close("sell")
+    Selling := 0
+
+if (Buying == 0 and Selling == 0 and co and close > emadn and wt1 < 0 and wt2 < 0)
+    TrailB := close*(1-Sloss)
+    TakeProfitB := close*(1+TProfit)
+    Plot_buy := close
+    strategy.entry("buy", strategy.short, Contrat)
+    Buying := 1
+    MaxB := close
+    SlossB := close*(1-Sloss)
+else
+    Plot_buy := 0
+if (close > (MaxB*(1+tstep)) and Trailtf == true)
+    TrailB := TrailB + (close - MaxB)
+    MaxB := close
+if (Buying == 1 and ((close <= TrailB and Trailtf == true) or (close <= SlossB)))
+    TrstopB := close
+    strategy.close("buy")
+    Buying := 0
+if (Buying == 1 and (close >= TakeProfitB or (cu and wt1 > 0 and wt2 > 0)))
+    Close_buy := close
+    strategy.close("buy")
+    Buying := 0
+
+plot(ta.ema(close, emaslow))
+plot(TrailB, title='Trailing stop Buy',color=color.purple)
+plot(TrailS, title='Trailing stop Sell',color=color.orange)
+//plotshape(TrstopB, title='Stop Buy', style=shape.labeldown, location=location.abovebar, size=size.normal, text='Stop Buy', textcolor=color.new(color.white, 0), color=color.new(color.purple, 0))
+//plotshape(TrstopS, title='Stop Sell', style=shape.labelup, location=location.belowbar, size=size.normal, text='Stop Sell', textcolor=color.new(color.white, 0), color=color.new(color.orange, 0))
+//plotshape(Plot_sell, title='Sell Label', style=shape.labeldown, location=location.abovebar, size=size.normal, text='Sell', textcolor=color.new(color.white, 0), color=color.new(color.red, 0))
+//plotshape(Plot_buy, title='Buy Label', style=shape.labelup, location=location.belowbar, size=size.normal, text='Buy', textcolor=color.new(color.white, 0), color=color.new(color.green, 0))
+//plotshape(Close_sell, title='Close Sell Label', style=shape.labelup, location=location.belowbar, size=size.small, text='Close Sell', textcolor=color.new(color.white, 0), color=color.new(color.blue, 0))
+//plotshape(Close_buy, title='Close Buy Label', style=shape.labeldown, location=location.abovebar, size=size.small, text='Close Buy', textcolor=color.new(color.white, 0), color=color.new(color.yellow, 0))
+
+//alertcondition(Plot_buy, title='Long', message='Long  @ {{close}}')
+//alertcondition(Plot_sell, title='Short', message='Short  @ {{close}}')
+//alertcondition(Close_buy, title='Close Long', message='Close  @ {{close}}')
+//alertcondition(Close_sell, title='Close Short', message='Close  @ {{close}}')
+//alertcondition(TrstopB, title='Trailing Stop Long', message='Close  @ {{close}}')
+//alertcondition(TrstopS, title='Trailing Stop Short', message='Close  @ {{close}}')
+
